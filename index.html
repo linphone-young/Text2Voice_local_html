@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>词汇音频生成系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .lrc-line { transition: all 0.25s ease-in-out; }
+        .lrc-line.active {
+            color: #60a5fa;
+            font-weight: bold;
+            font-size: 1.3rem;
+            transform: scale(1.02);
+            text-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <div class="max-w-5xl mx-auto px-4 py-8">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-gray-200 pb-4 gap-4">
+            <div class="text-center md:text-left">
+                <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">🎧 短语歌词音频生成器 <span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full align-middle">极速缓存版</span></h1>
+                <p class="text-gray-500 mt-1 text-sm">命中相同文件与音色配置时，自动激活物理切片拼接技术，速度提升 90%</p>
+            </div>
+            <!-- 清除缓存控制 -->
+            <button type="button" id="clearCacheBtn" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs px-4 py-2 rounded-xl transition font-medium flex items-center gap-1.5 shadow-sm">
+                🗑️ 清空后端所有 TMP 缓存
+            </button>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 左侧：控制面板 -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">⚙️ 配置参数</h2>
+                <form id="configForm" class="space-y-5">
+                    <!-- 文件上传 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">选择文本文件 (.md / .txt)</label>
+                        <div class="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-blue-400 transition cursor-pointer relative">
+                            <input type="file" id="fileInput" accept=".md,.txt" class="absolute inset-0 opacity-0 cursor-pointer" required />
+                            <p id="fileName" class="text-sm text-gray-500">点击或拖拽文件至此</p>
+                        </div>
+                    </div>
+
+                    <!-- 英文重复次数 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">英文重复次数</label>
+                        <input type="number" id="enRepeat" value="2" min="1" max="5" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+
+                    <!-- 音色选择 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">发音音色</label>
+                        <select id="voiceMode" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                            <option value="default">默认固定 (Aria & 晓晓) [可触发极速拼接]</option>
+                            <option value="random">随机整包音色组合 (强制重新下载)</option>
+                        </select>
+                    </div>
+
+                    <!-- 块排序 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">语序模式</label>
+                        <select id="orderMode" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                            <option value="sequential">按文本顺序生成</option>
+                            <option value="random">乱序随机打乱</option>
+                        </select>
+                    </div>
+
+                    <!-- 朗读混音 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">内容模式</label>
+                        <select id="mixMode" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                            <option value="mix">英中混读 (单词+中文)</option>
+                            <option value="en">纯英文朗读</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                        <span>🚀 开始精制音频</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- 右侧：播放、耗时看板与歌词同步 -->
+            <div class="lg:col-span-2 flex flex-col gap-6">
+
+                <!-- ⏱️ 耗时与状态统计看板 -->
+                <div id="statsCard" class="bg-gradient-to-br from-gray-800 to-slate-900 text-white p-5 rounded-2xl shadow-md hidden">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2">
+                        ⚡ 引擎综合性能统计报告
+                    </h3>
+                    <div class="grid grid-cols-3 gap-4 border-b border-gray-700 pb-3 mb-3">
+                        <div class="text-center">
+                            <p class="text-gray-400 text-xs">平均每组短语抓取</p>
+                            <p id="statAvg" class="text-xl font-bold text-blue-400 mt-1">0.000 <span class="text-xs font-normal text-white">s</span></p>
+                        </div>
+                        <div class="text-center border-x border-gray-700">
+                            <p class="text-gray-400 text-xs">FFmpeg 拼接导出</p>
+                            <p id="statStitch" class="text-xl font-bold text-green-400 mt-1">0.000 <span class="text-xs font-normal text-white">s</span></p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-gray-400 text-xs">服务端处理总长</p>
+                            <p id="statTotal" class="text-xl font-bold text-amber-400 mt-1">0.000 <span class="text-xs font-normal text-white">s</span></p>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-gray-400">
+                        <span id="cacheNotice">💡 提示：如果文件相同，平均短语抓取时间会无限趋近于 0 秒！</span>
+                    </div>
+                </div>
+
+                <!-- 进度看板 -->
+                <div id="progressCard" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 id="progressStage" class="text-sm font-bold text-gray-700 flex items-center gap-2">正在解析文本结构...</h2>
+                        <span id="progressPercent" class="text-sm font-semibold text-blue-600">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                        <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-full w-0 transition-all duration-300 ease-out"></div>
+                    </div>
+                    <p id="progressDetail" class="text-xs text-gray-400 mt-2">准备中...</p>
+                </div>
+
+                <!-- 播放器卡片 -->
+                <div id="playerCard" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hidden">
+                    <div class="flex justify-between items-start mb-2">
+                        <h2 class="text-lg font-bold text-gray-800">🎵 听力音频控制台</h2>
+                        <span id="voiceBadge" class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-md font-medium border border-blue-100"></span>
+                    </div>
+                    <audio id="audioPlayer" controls class="w-full mt-2 rounded-lg bg-gray-50"></audio>
+                </div>
+
+                <!-- 歌词视窗 -->
+                <div class="bg-gray-900 rounded-2xl p-6 shadow-lg flex-1 flex flex-col min-h-[350px] max-h-[450px]">
+                    <div class="flex justify-between items-center mb-4 border-b border-gray-800 pb-3">
+                        <span class="text-xs font-semibold tracking-wider text-gray-400 uppercase">📝 动态歌词同步视窗</span>
+                        <span id="lrcStatus" class="text-xs text-gray-500">等待音频生成...</span>
+                    </div>
+                    <div id="lrcContainer" class="flex-1 overflow-y-auto space-y-4 scroll-smooth pr-2 text-center flex flex-col justify-center items-center text-gray-500">
+                        <p id="placeholderText">暂无生成音频，请在左侧上传并提交任务</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const configForm = document.getElementById('configForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const playerCard = document.getElementById('playerCard');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const lrcContainer = document.getElementById('lrcContainer');
+        const lrcStatus = document.getElementById('lrcStatus');
+        const voiceBadge = document.getElementById('voiceBadge');
+        const clearCacheBtn = document.getElementById('clearCacheBtn');
+
+        // 耗时看板组件
+        const statsCard = document.getElementById('statsCard');
+        const statAvg = document.getElementById('statAvg');
+        const statStitch = document.getElementById('statStitch');
+        const statTotal = document.getElementById('statTotal');
+        const cacheNotice = document.getElementById('cacheNotice');
+
+        // 进度组件
+        const progressCard = document.getElementById('progressCard');
+        const progressStage = document.getElementById('progressStage');
+        const progressPercent = document.getElementById('progressPercent');
+        const progressBar = document.getElementById('progressBar');
+        const progressDetail = document.getElementById('progressDetail');
+
+        let lrcData = [];
+        let progressInterval = null;
+        let currentFileUniqueId = "";
+
+        // 文件选择监听，生成轻量文件特征码（用于标识是否为同一文件）
+        fileInput.addEventListener('change', (e) => {
+            if(e.target.files.length > 0) {
+                const file = e.target.files[0];
+                fileName.innerText = file.name;
+                fileName.classList.remove('text-gray-500');
+                fileName.classList.add('text-blue-600', 'font-medium');
+
+                // 借助文件名、大小、最后修改时间生成本地唯一标识串
+                currentFileUniqueId = btoa(encodeURIComponent(file.name + file.size + file.lastModified)).substring(0, 16);
+            }
+        });
+
+        // 手动清理全部缓存
+        clearCacheBtn.addEventListener('click', async () => {
+            if(!confirm("确定要强制清空后端的所有切片缓存(TMP)吗？这会导致下次生成相同文件时重新下载。")) return;
+            try {
+                const res = await fetch('/api/clear_cache', { method: 'POST' });
+                const data = await res.json();
+                if(data.success) {
+                    alert("🚀 后端所有 TMP 缓存及历史音频已全部销毁！");
+                    statsCard.classList.add('hidden');
+                }
+            } catch(e) {
+                alert("清理失败，请检查后端网络状态");
+            }
+        });
+
+        function simulateProgress() {
+            let currentProgress = 0;
+            clearInterval(progressInterval);
+            progressCard.classList.remove('hidden');
+
+            progressInterval = setInterval(() => {
+                if (currentProgress < 15) {
+                    currentProgress += 5;
+                    progressStage.innerText = `⏳ 正在检查缓存指纹与多模态匹配...`;
+                    progressDetail.innerText = `解析文本块中，正在校验文件特征码...`;
+                } else if (currentProgress < 85) {
+                    let step = (90 - currentProgress) * 0.12 + Math.random() * 2;
+                    currentProgress += step;
+                    if (currentProgress > 85) currentProgress = 85;
+                    progressStage.innerText = `⚡ 正在并行提取切片音轨 (若命中缓存将瞬间完成)...`;
+                    progressDetail.innerText = `20路高并发调度通道处理中...`;
+                } else if (currentProgress < 99) {
+                    currentProgress += 0.5;
+                    if (currentProgress > 99) currentProgress = 99;
+                    progressStage.innerText = `🎛️ 正在交由 FFmpeg 拼装并打包时间轴字幕...`;
+                    progressDetail.innerText = `合并基础音轨，计算内嵌歌词位移标签...`;
+                }
+
+                const displayProgress = Math.min(Math.round(currentProgress), 99);
+                progressPercent.innerText = `${displayProgress}%`;
+                progressBar.style.width = `${displayProgress}%`;
+            }, 150);
+        }
+
+        configForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!fileInput.files[0]) return;
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('en_repeat', document.getElementById('enRepeat').value);
+            formData.append('voice_mode', document.getElementById('voiceMode').value);
+            formData.append('order_mode', document.getElementById('orderMode').value);
+            formData.append('mix_mode', document.getElementById('mixMode').value);
+            formData.append('file_md5', currentFileUniqueId); // 递交指纹给后端
+
+            submitBtn.disabled = true;
+            simulateProgress();
+
+            try {
+                const response = await fetch('/api/generate', { method: 'POST', body: formData });
+                if (!response.ok) {
+                    const errDetail = await response.json();
+                    throw new Error(errDetail.detail || "服务端发生未知熔断");
+                }
+
+                const resData = await response.json();
+
+                if (resData.success) {
+                    clearInterval(progressInterval);
+                    progressPercent.innerText = `100%`;
+                    progressBar.style.width = `100%`;
+                    progressStage.innerText = `✅ 音频精制封装完毕！`;
+                    progressDetail.innerText = `共处理 ${resData.total_words} 组词汇，已就绪。`;
+
+                    // 1. 展现耗时面板并填入真实用时
+                    statsCard.classList.remove('hidden');
+                    statAvg.innerHTML = `${resData.time_stats.avg_phrase_time} <span class="text-xs font-normal text-white">秒</span>`;
+                    statStitch.innerHTML = `${resData.time_stats.stitch_time} <span class="text-xs font-normal text-white">秒</span>`;
+                    statTotal.innerHTML = `${resData.time_stats.total_time} <span class="text-xs font-normal text-white">秒</span>`;
+
+                    // 判断是否命中了极速缓存
+                    if(resData.time_stats.avg_phrase_time <= 0.005) {
+                        cacheNotice.innerHTML = `🚀 <span class="text-green-400 font-bold">完美命中 TMP 缓存！</span>本次未请求微软接口，仅通过本地切片瞬间拼接完成。`;
+                    } else {
+                        cacheNotice.innerHTML = `💡 提示：当前文件已在本地建立 TMP 缓存。不换文件及音色再次点生成，将触发秒级拼接加速。`;
+                    }
+
+                    // 2. 展现音色与播放器
+                    voiceBadge.innerText = `🔊 ${resData.voice_info}`;
+                    playerCard.classList.remove('hidden');
+                    audioPlayer.src = resData.audio_url;
+
+                    // 3. 解析与渲染歌词
+                    parseLrc(resData.lrc);
+                    lrcStatus.innerText = `时间轴同步行: ${lrcData.length}`;
+                    renderLrcUI();
+
+                    audioPlayer.load();
+                    audioPlayer.play().catch(() => {});
+                }
+            } catch (error) {
+                clearInterval(progressInterval);
+                progressCard.classList.add('hidden');
+                lrcContainer.innerHTML = `<p class="text-red-400">❌ 生成失败: ${error.message}</p>`;
+                alert(error.message);
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        function parseLrc(lrcText) {
+            lrcData = [];
+            if (!lrcText) return;
+            const lines = lrcText.split('\n');
+            const timeReg = /\[(\d+):(\d+)\.(\d+)\]/;
+
+            lines.forEach(line => {
+                const matches = timeReg.exec(line);
+                if (matches) {
+                    const minutes = parseInt(matches[1], 10);
+                    const seconds = parseInt(matches[2], 10);
+                    const ms = parseInt(matches[3], 10);
+                    const msFactor = matches[3].length === 2 ? 100 : 1000;
+                    const totalSeconds = minutes * 60 + seconds + (ms / msFactor);
+                    const text = line.replace(timeReg, '').trim();
+                    if (text) {
+                        lrcData.push({ time: totalSeconds, text: text });
+                    }
+                }
+            });
+            lrcData.sort((a, b) => a.time - b.time);
+        }
+
+        function renderLrcUI() {
+            lrcContainer.innerHTML = '';
+            lrcContainer.classList.remove('justify-center', 'items-center');
+
+            lrcData.forEach((item, index) => {
+                const p = document.createElement('p');
+                p.id = `lrc-line-${index}`;
+                p.className = 'lrc-line text-gray-400 text-base py-1.5 px-4 cursor-pointer hover:text-gray-200 transition rounded-lg';
+                p.innerText = item.text;
+                p.onclick = () => { audioPlayer.currentTime = item.time; };
+                lrcContainer.appendChild(p);
+            });
+        }
+
+        audioPlayer.addEventListener('timeupdate', () => {
+            if (lrcData.length === 0) return;
+            const currentTime = audioPlayer.currentTime;
+
+            let activeIndex = 0;
+            for (let i = 0; i < lrcData.length; i++) {
+                if (currentTime >= lrcData[i].time) {
+                    activeIndex = i;
+                } else {
+                    break;
+                }
+            }
+
+            const allLines = document.querySelectorAll('.lrc-line');
+            allLines.forEach((line, idx) => {
+                if (idx === activeIndex) {
+                    if (!line.classList.contains('active')) {
+                        line.classList.add('active');
+                        line.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } else {
+                    line.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
