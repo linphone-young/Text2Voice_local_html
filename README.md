@@ -42,7 +42,7 @@ pip install fastapi uvicorn edge-tts pydub mutagen tqdm WebSockets
 
 ### 2. FFmpeg 快捷配置 (以 Windows 为例)
 
-FFmpeg<a src='https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip'>下载链接</a>
+FFmpeg<a href='https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip'>下载链接</a>
 若系统未配置 FFmpeg，您只需在项目根目录下创建一个名为 `FFmpeg` 的文件夹，并将下载好的 FFmpeg 核心程序放入其中。目录结构保持如下即可自动识别：
 
 ```text
