@@ -1,0 +1,16 @@
+# 忽略 Python 编译缓存
+__pycache__/
+*.pyc
+
+# 忽略系统与临时资产目录
+uploads/
+tmp*/
+static/output/
+output*/
+
+# 忽略本地开发环境和集成依赖（如用户自己放入的独立ffmpeg）
+.vscode/
+.idea/
+venv/
+ENV/
+FFmpeg/
