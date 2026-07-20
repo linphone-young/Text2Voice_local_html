@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("TTS_Engine")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.abspath('.')
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 OUTPUT_DIR = os.path.join(BASE_DIR, "static", "output")
 CACHE_DIR = os.path.join(BASE_DIR, "tmp_cache")
@@ -31,7 +31,7 @@ for folder in [UPLOAD_DIR, OUTPUT_DIR, CACHE_DIR, os.path.join(BASE_DIR, "static
     os.makedirs(folder, exist_ok=True)
 
 # ==================== FFmpeg 智能跨系统环境适配 ====================
-PROJECT_FFMPEG_DIR = os.path.join(BASE_DIR, "ffmpeg", "bin")
+PROJECT_FFMPEG_DIR = os.path.join(BASE_DIR, "FFmpeg", "bin")
 HARDCODED_BACKUP_DIR = "FFmpeg/bin"
 
 chosen_ffmpeg_dir = None
@@ -120,11 +120,14 @@ def parse_markdown_content(text: str) -> List[Dict[str, str]]:
         line = re.sub(r"^\s*\d+[\.\s、]*", "", line).strip()
         # 精准捕获行尾括号内的中文释义（全面兼容中英文括号）
         m = re.search(r"[（(]([^)）]+)[)）]\s*$", line)
-        if not m:
-            continue
+        if m:
+            zh = m.group(1).strip()
+            en = line[:m.start()].strip()
+        else:
+            zh = ""
+            en = line.strip()
 
-        zh = m.group(1).strip()
-        en = line[:m.start()].strip().replace("**", "")
+        en = en.replace("**", "").strip()
 
         # 兼容高级短语组合变形，如 look(for) -> look, look for
         idx = en.find("(")
@@ -134,8 +137,9 @@ def parse_markdown_content(text: str) -> List[Dict[str, str]]:
                 base = en[:idx]
                 en = f"{base}, {base}{en[idx + 1:end]}"
 
+        # 去除多余的空格
         en = re.sub(r"\s+", " ", en).strip()
-        if en and zh:
+        if en:
             words.append({"en": en, "zh": zh})
 
     logger.info(f"📝 文本结构解析成功：共捕获到 {len(words)} 组有效双语词条")
