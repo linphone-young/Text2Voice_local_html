@@ -13,4 +13,4 @@ output*/
 .idea/
 venv/
 ENV/
-FFmpeg/
+FFmpeg/bin/*.exe
