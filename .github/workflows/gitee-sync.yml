@@ -1,25 +1,30 @@
-name: Sync to Gitee
+name: Sync GitHub To Gitee
 
 on:
   push:
     branches:
       - main
       - develop
+
   workflow_dispatch:
 
+
 jobs:
-  run:
-    name: Sync GitHub to Gitee
+  mirror:
+    name: Mirror Repository
     runs-on: ubuntu-latest
+
     steps:
-      - name: Mirror the GitHub repos to Gitee
+      - name: Sync GitHub repository to Gitee
         uses: Yikun/hub-mirror-action@master
         with:
-          src: github/${{ github.repository_owner }}
-          dst: gitee/${{ secrets.GITEE_USER }}
-          static_list: '${{ github.event.repository.name }}'
-          dst_key: ${{ secrets.GITEE_RSA_PRIVATE_KEY }}
-          dst_token: ${{ secrets.GITEE_PASSWORD }}
-          force_update: true
-          debug: true
+          src: github/linphone-young
+          dst: gitee/yang-lingfeng
 
+          static_list: Text2Voice_local_html
+
+          dst_key: ${{ secrets.GITEE_RSA_PRIVATE_KEY }}
+
+          force_update: true
+
+          debug: true
