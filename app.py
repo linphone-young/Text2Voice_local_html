@@ -347,4 +347,4 @@ async def index():
 if __name__ == "__main__":
     import uvicorn
     # 绑定 0.0.0.0 以实现多设备/跨端访问
-    uvicorn.run("app:app", host="0.0.0.0", port=8003, reload=False)
+    uvicorn.run("app:app", host="0.0.0.0", port=8003, reload=True)
