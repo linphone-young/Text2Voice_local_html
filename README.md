@@ -100,7 +100,8 @@ python app.py
 1. confidant(e) (n. 知己)
 2. look (for) (v. 寻找，寻觅)
 3. **priority** (n. 优先事项；优先权)
-4. take measures to do sth (采取措施做某事)
+ take measures to do sth (采取措施做某事)
+ hit it off
 
 ```
 
